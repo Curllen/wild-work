@@ -407,8 +407,6 @@ function renderFees(fees) {
   if (fees.cached_at) html += `<div class="note">费率上次更新：${esc(fees.cached_at)}</div>`;
   if (fees.error) html += `<div class="note" style="color:var(--danger)">${esc(fees.error)}</div>`;
 
-  html += `<table><thead><tr><th>模型</th><th>倍率</th><th>模型</th><th>倍率</th></tr></thead><tbody>`;
-
   const UNKNOWN_TIP = "上游未返回，请在客户端自行确认";
 
   // 能力图标：模型 ID 后的小标记，title 属性提供文字描述。
@@ -530,7 +528,10 @@ function bindFeesTabs() {
     const ch = btn.dataset.feech;
     renderFees.lastCh = ch;
     box.querySelectorAll(".fees-tab").forEach((x) => x.classList.toggle("active", x === btn));
-    box.querySelectorAll(".fees-panel").forEach((p) => p.classList.toggle("hidden", p.dataset.feepanel !== ch));
+          box.querySelectorAll(".fees-panel").forEach(function (p) {
+        if (p.dataset.feepanel === ch) { p.classList.remove("hidden"); }
+        else { p.classList.add("hidden"); }
+      });
   });
 }
 
