@@ -641,11 +641,15 @@ func (a *App) completeLogin(r login.Result) {
 // 若不主动失效缓存，两处都要等 TTL（1h / 1h）才更新，面板上显示不完整。
 // 故每个渠道登录成功后统一调用。
 func (a *App) afterAccountAdded(kind provider.Kind) {
-	// 1) 使动态模型缓存失效，下次 /v1/models 与面板重新拉上游
+	// 1) 失效模型缓存后【必须】立即重建——否则其它渠道的模型缓存被误杀：
+	//    InvalidateModels 清空的是【全部渠道】的缓存，而 RefreshPricing 只拉费率不拉模型，
+	//    若只失效不重建，qodercn/qodercom 等无静态兑底渠道会从面板整组消失，
+	//    直到下一个 30min ticker（生产 2026-09-28 实测：登录 qwenwork 后 qoder 双渠道消失 28min）。
 	if a.handler != nil {
 		a.handler.InvalidateModels()
+		a.refreshChannelModels()
 	}
-	// 2) 立即刷新费率为后台任务（含模型列表拉取），不阻塞登录流程
+	// 2) 立即刷新费率为后台任务，不阻塞登录流程
 	a.safeGo(func() {
 		a.RefreshPricing()
 		log.Printf("account added platform=%s: models+pricing refreshed", kind)
