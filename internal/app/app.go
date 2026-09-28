@@ -1217,6 +1217,7 @@ func (a *App) StartPricingAutoRefresh(ctx context.Context, interval time.Duratio
 		if a.handler != nil {
 			a.handler.InvalidateModels()
 		}
+		a.refreshChannelModels() // 填充模型缓存（issue #40：面板只读缓存，必须有填充源）
 		a.RefreshPricing()
 		t := time.NewTicker(interval)
 		defer t.Stop()
@@ -1225,10 +1226,28 @@ func (a *App) StartPricingAutoRefresh(ctx context.Context, interval time.Duratio
 			case <-ctx.Done():
 				return
 			case <-t.C:
+				a.refreshChannelModels() // 同上：随费率一起周期性拉新
 				a.RefreshPricing()
 			}
 		}
 	}()
+}
+
+// refreshChannelModels 拉取各渠道模型列表并填充 handler 的模型缓存。
+//
+// 为什么必须有这一步（issue #40）：费率面板读 CachedChannelModels（只读缓存、
+// 不发网络请求），而缓存 rt.models 此前**只有 /v1/models 请求会填充**——
+// RefreshPricing 只拉费率不拉模型。于是冷启动后，凡无静态兑底表的渠道
+//（qodercn/qodercom）在面板上整组消失，直到某个客户端碰巧请求了 /v1/models。
+// 故模型列表的填充必须与费率刷新同样走后台定时路径。
+//
+// 网络开销可控：ChannelModels 内部 fetchRuntimeModels 自带 1h TTL 与
+// 5min 失败负缓存，与本函数的 30min 调度配合，不会打爆上游。
+func (a *App) refreshChannelModels() {
+	if a.handler == nil {
+		return
+	}
+	a.handler.ChannelModels()
 }
 
 // RefreshCredits 刷新单个账号积分（返回可消耗余额）。

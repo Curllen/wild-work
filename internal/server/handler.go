@@ -679,15 +679,18 @@ func (h *Handler) CachedChannelModels() map[provider.Kind][]provider.ModelInfo {
 		if rt == nil || rt.Pool == nil || len(rt.Pool.List()) == 0 {
 			continue
 		}
-		// 取缓存：TTL 内直接返回，否则静态兜底（不触发网络请求）
+		// 取缓存：优先「上次成功拉取」的动态表，**哪怕已过 TTL**（issue #40）。
+		// 过期数据比空数据好——尤其 qodercn/qodercom 没有静态兜底表，
+		// 若在这里回退 StaticModels(nil)，整个渠道分组会从面板消失。
+		// 陈旧性由后台 StartPricingAutoRefresh（30min）收敛，TTL 只决定
+		// 下次是否重新拉取，不决定「要不要展示」。
 		rt.mu.RLock()
-		if len(rt.models) > 0 && time.Since(rt.fetched) < dynamicModelsTTL {
-			infos := rt.models
-			rt.mu.RUnlock()
-			out[k] = infos
+		models := rt.models
+		rt.mu.RUnlock()
+		if len(models) > 0 {
+			out[k] = models
 			continue
 		}
-		rt.mu.RUnlock()
 		out[k] = rt.StaticModels
 	}
 	return out
