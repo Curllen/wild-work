@@ -592,7 +592,7 @@ func noLoginChannel(k provider.Kind) bool { return k == provider.Oczen }
 func (h *Handler) runtimeForModel(model string) (*Runtime, string, error) {
 	parts := strings.SplitN(strings.TrimSpace(model), "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return nil, "", fmt.Errorf("model must use explicit prefix: workbuddy/<model> / traework/<model> / qoder/<model> / qodercn/<model> / qwenwork/<model> / oczen/<model>")
+		return nil, "", fmt.Errorf("model must use explicit prefix: workbuddy/<model> / workbuddyai/<model> / traework/<model> / qoder/<model> / qodercn/<model> / qodercom/<model> / qwenwork/<model> / glm/<model> / oczen/<model>")
 	}
 	kind := provider.Kind(parts[0])
 	rt := h.cfg.Runtimes[kind]
