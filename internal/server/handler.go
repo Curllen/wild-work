@@ -746,10 +746,11 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_, _ = w.Write(raw)
 }
 
-// MaxRequestBody 请求体上限（8MiB）：server 与 gateway 共用，避免两处硬编码不同步。
+// MaxRequestBody 请求体上限（32MiB）：server 与 gateway 共用，避免两处硬编码不同步。
+// 原为 8MiB，实测多模态大图 base64 后（体积 ×~1.37）很宐易超限（issue #30 反馈），提至 32MiB。
 // 超限直接回 413 说真话，不做静默截断——截断后 JSON 解析失败会被误报成
 // invalid_model（issue #30），比直接拒绝更误导排查。
-const MaxRequestBody = 8 << 20
+const MaxRequestBody = 32 << 20
 
 // ReadBodyLimited 读取请求体：超过 MaxRequestBody 时回 413 并返回错误。
 // 用 LimitReader(max+1) 多读 1 字节以区分「恰好 max」与「超限」。
@@ -765,8 +766,8 @@ func ReadBodyLimited(r *http.Request) ([]byte, error) {
 	return raw, nil
 }
 
-// errTooLarge 超限哨兵错误（调用方据此回 413）。
-var errTooLarge = fmt.Errorf("request body exceeds limit of %d bytes; please reduce conversation context", MaxRequestBody)
+// errTooLarge 超限哨兵错误（调用方据此回 413）。MiB 数字直接用常量推导，避免改上限后文案不同步。
+var errTooLarge = fmt.Errorf("request body exceeds limit of %d bytes (%d MiB); please reduce request size", MaxRequestBody, MaxRequestBody>>20)
 
 func writeOpenAIError(w http.ResponseWriter, status int, code, msg string) {
 	writeJSON(w, status, map[string]any{"error": map[string]any{"message": msg, "type": "api_error", "code": code}})
