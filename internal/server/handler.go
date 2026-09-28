@@ -350,8 +350,21 @@ func (h *Handler) fetchRuntimeModels(rt *Runtime) []provider.ModelInfo {
 	if acct == nil {
 		return nil
 	}
+	// 401 自愈：与费率路径（RefreshPricing）同款——拉取前先检查 token 有效性，
+	// 过期先 refresh + 落盘。否则冷启动时 qodercn/qodercom 等无静态兑底渠道
+	// 拿过期 token 拉 FetchModels → 401 → 静默失败 → 负缓存 5min，
+	// 费率面板整组消失，最坏要等 30min ticker 才补拉（不变量 19）。
+	if acct.NeedsRefresh(10 * time.Minute) {
+		if err := rt.Upstream.RefreshToken(acct); err != nil {
+			log.Printf("models fetch token refresh failed platform=%s uid=%s err=%v", rt.Kind, acct.UID, err)
+		} else if serr := acct.SaveAtomic(); serr != nil {
+			log.Printf("models fetch token save failed platform=%s uid=%s err=%v", rt.Kind, acct.UID, serr)
+		}
+	}
 	infos, err := rt.Upstream.FetchModels(acct)
 	if err != nil || len(infos) == 0 {
+		// 失败不再静默：无静态兑底渠道（qodercn/qodercom）整组消失时，
+		// 至少日志里要有原因可查（曾致 issue #40 复发 40 分钟无法定位）。
 		now := time.Now()
 		rt.mu.Lock()
 		rt.lastFail = now
@@ -361,6 +374,7 @@ func (h *Handler) fetchRuntimeModels(rt *Runtime) []provider.ModelInfo {
 			dynamicModelsCache.lastFail = now
 			dynamicModelsCache.Unlock()
 		}
+		log.Printf("models fetch failed platform=%s uid=%s err=%v n=%d", rt.Kind, acct.UID, err, len(infos))
 		return nil
 	}
 	now := time.Now()
