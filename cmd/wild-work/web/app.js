@@ -501,10 +501,10 @@ function renderFees(fees) {
   html += `</div>`;
 
   for (const ch of channels) {
-    if (ch.channel !== active) continue;
     const chCls = chClass(ch.channel);
     const models = ch.models || [];
-    html += `<div class="fees-panel" data-feepanel="${esc(ch.channel)}">`;
+    const hidden = ch.channel !== active ? ' class="hidden"' : '';
+    html += `<div class="fees-panel${hidden ? ' hidden' : ''}" data-feepanel="${esc(ch.channel)}">`;
     html += `<table><thead><tr><th>模型</th><th>倍率</th><th>模型</th><th>倍率</th></tr></thead><tbody>`;
     for (let i = 0; i < models.length; i += 2) {
       const m1 = models[i];
