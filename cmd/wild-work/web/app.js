@@ -482,12 +482,30 @@ function renderFees(fees) {
     return ` <span class="rate-note"${style}>${esc(m.note)}</span>`;
   };
 
+  // 渠道多标签：每个渠道一个 tab，panel 内双列模型布局不变（issue：费率表太长）。
+  // 记住上次选中的渠道，重渲染后自动恢复（后台刷新不打断用户浏览）。
+  if (!renderFees.lastCh) renderFees.lastCh = channels[0].channel;
+  // 选中的渠道若已不在列表里（渠道被移除），回退到第一个
+  if (!channels.some((c) => c.channel === renderFees.lastCh)) {
+    renderFees.lastCh = channels[0].channel;
+  }
+  const active = renderFees.lastCh;
+
+  html += `<div class="fees-tabs">`;
   for (const ch of channels) {
-    const chName = chLabel(ch.channel);
+    const n = (ch.models || []).length;
+    const on = ch.channel === active ? " active" : "";
+    html += `<button class="fees-tab${on}" data-feech="${esc(ch.channel)}"
+      title="${esc(chLabel(ch.channel))}">${esc(chLabel(ch.channel))}<span class="fees-tab-n">${n}</span></button>`;
+  }
+  html += `</div>`;
+
+  for (const ch of channels) {
+    if (ch.channel !== active) continue;
     const chCls = chClass(ch.channel);
     const models = ch.models || [];
-    html += `<tr class="ch-header ${chCls}"><td colspan="4">${esc(chName)}</td></tr>`;
-    // 每行两个模型
+    html += `<div class="fees-panel" data-feepanel="${esc(ch.channel)}">`;
+    html += `<table><thead><tr><th>模型</th><th>倍率</th><th>模型</th><th>倍率</th></tr></thead><tbody>`;
     for (let i = 0; i < models.length; i += 2) {
       const m1 = models[i];
       const m2 = models[i + 1];
@@ -495,11 +513,25 @@ function renderFees(fees) {
       const id2 = m2 ? `<code title="${esc(modelTip(m2))}">${esc(m2.model)}</code>${ctxTag(m2)}${capIcons(m2)}${noteCell(m2)}` : "";
       html += `<tr><td>${id1}</td><td>${rateCell(m1)}</td><td>${id2}</td><td>${rateCell(m2)}</td></tr>`;
     }
+    html += `</tbody></table></div>`;
   }
 
-  html += `</tbody></table>`;
   html += `<div class="note" style="margin-top:8px">${esc(fees.disclaimer || "")}</div>`;
   box.innerHTML = html;
+}
+
+// bindFeesTabs 费率渠道标签点击切换（事件委托，绑定一次）。
+// 渲染只改 active 类与面板可见性，不重建 DOM，避免滚动位置跳动。
+function bindFeesTabs() {
+  const box = $("feesBox");
+  box.addEventListener("click", (e) => {
+    const btn = e.target.closest(".fees-tab");
+    if (!btn) return;
+    const ch = btn.dataset.feech;
+    renderFees.lastCh = ch;
+    box.querySelectorAll(".fees-tab").forEach((x) => x.classList.toggle("active", x === btn));
+    box.querySelectorAll(".fees-panel").forEach((p) => p.classList.toggle("hidden", p.dataset.feepanel !== ch));
+  });
 }
 
 // fmtTokens 把 token 数格式化为 1M / 192k 形式。
@@ -1391,6 +1423,8 @@ function bindMainTabs() {
       }
     };
   });
+
+  bindFeesTabs(); // 费率面板渠道标签切换（事件委托一次绑定）
 }
 
 // 面板 tab / 范围切换事件（bind 末尾调用）
