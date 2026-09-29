@@ -216,15 +216,15 @@ func main() {
 	trUp.StreamHTTP.Transport = trUp.HTTP.Transport
 	glmUp.StreamHTTP.Transport = glmUp.HTTP.Transport
 	applyProxies(cfg, map[string][]*http.Client{
-		provider.WorkBuddy.String():   {wbUp.HTTP, wbUp.BillingHTTP},
-		provider.WorkBuddyAI.String(): {wbaUp.HTTP},
+		provider.WorkBuddy.String():   {wbUp.HTTP, wbUp.BillingHTTP, wbUp.StreamHTTP},
+		provider.WorkBuddyAI.String(): {wbaUp.HTTP, wbaUp.StreamHTTP},
 		provider.TraeWork.String():    {trUp.HTTP, trUp.StreamHTTP},
-		provider.Qoder.String():       {qdUp.HTTP},
-		provider.QoderCN.String():     {qcnUp.HTTP},
-		provider.QoderCOM.String():    {qcmUp.HTTP},
-		provider.QwenWork.String():    {qwUp.HTTP},
-		provider.Oczen.String():       {ocUp.HTTP},
-		// glm 两个 client 都要传：SetTransportProxy 会**新建** Transport，
+		provider.Qoder.String():       {qdUp.HTTP, qdUp.StreamHTTP},
+		provider.QoderCN.String():     {qcnUp.HTTP, qcnUp.StreamHTTP},
+		provider.QoderCOM.String():    {qcmUp.HTTP, qcmUp.StreamHTTP},
+		provider.QwenWork.String():    {qwUp.HTTP, qwUp.StreamHTTP},
+		provider.Oczen.String():       {ocUp.HTTP, ocUp.StreamHTTP},
+		// glm 两个 client 都要传（SetTransportProxy 会**新建** Transport，
 		// 只套 HTTP 会让 StreamHTTP 仍走直连（代理对流式不生效）。
 		provider.GLM.String(): {glmUp.HTTP, glmUp.StreamHTTP},
 	})
@@ -392,14 +392,14 @@ func main() {
 		next := *cfg
 		next.Proxies = proxies
 		applyProxies(&next, map[string][]*http.Client{
-			provider.WorkBuddy.String():   {wbUp.HTTP, wbUp.BillingHTTP},
-			provider.WorkBuddyAI.String(): {wbaUp.HTTP},
+			provider.WorkBuddy.String():   {wbUp.HTTP, wbUp.BillingHTTP, wbUp.StreamHTTP},
+			provider.WorkBuddyAI.String(): {wbaUp.HTTP, wbaUp.StreamHTTP},
 			provider.TraeWork.String():    {trUp.HTTP, trUp.StreamHTTP},
-			provider.Qoder.String():       {qdUp.HTTP},
-			provider.QoderCN.String():     {qcnUp.HTTP},
-			provider.QoderCOM.String():    {qcmUp.HTTP},
-			provider.QwenWork.String():    {qwUp.HTTP},
-			provider.Oczen.String():       {ocUp.HTTP},
+			provider.Qoder.String():       {qdUp.HTTP, qdUp.StreamHTTP},
+			provider.QoderCN.String():     {qcnUp.HTTP, qcnUp.StreamHTTP},
+			provider.QoderCOM.String():    {qcmUp.HTTP, qcmUp.StreamHTTP},
+			provider.QwenWork.String():    {qwUp.HTTP, qwUp.StreamHTTP},
+			provider.Oczen.String():       {ocUp.HTTP, ocUp.StreamHTTP},
 			// glm 两个 client 都要传（同启动路径的理由：SetTransportProxy 新建 Transport）
 			provider.GLM.String(): {glmUp.HTTP, glmUp.StreamHTTP},
 		})

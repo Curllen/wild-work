@@ -22,7 +22,11 @@ import (
 // Client 国际版上游 HTTP 客户端。Base 可覆盖以便测试。
 type Client struct {
 	HTTP *http.Client
-	Base string // 默认 https://www.workbuddy.ai
+	// StreamHTTP 用于对话流（SSE）。与 traework/glm 同款模式（见 R35）：
+	// 流式请求不得设 Client.Timeout——它覆盖整个响应体读取，长回答会在超时点被
+	// 掐断且无终止帧（issue #42 实测：tool_call 写到一半被断）。
+	StreamHTTP *http.Client
+	Base       string // 默认 https://www.workbuddy.ai
 }
 
 // New 生产默认。配置连接池减少 TLS 握手。
@@ -41,8 +45,9 @@ func NewWithTimeout(timeout time.Duration) *Client {
 		ResponseHeaderTimeout: 60 * time.Second,
 	}
 	return &Client{
-		HTTP: &http.Client{Timeout: timeout, Transport: tr},
-		Base: WBAIHost,
+		HTTP:       &http.Client{Timeout: timeout, Transport: tr},
+		StreamHTTP: &http.Client{Transport: tr}, // 共用 Transport（连接池复用），不设 Timeout
+		Base:       WBAIHost,
 	}
 }
 
@@ -272,7 +277,11 @@ func (c *Client) chatStreamOnce(a *auth.Auth, prepared []byte) (rc io.ReadCloser
 		return nil, 0, nil, err
 	}
 	chatHeaders(req, a)
-	resp, err := c.HTTP.Do(req)
+	hc := c.HTTP
+	if c.StreamHTTP != nil {
+		hc = c.StreamHTTP
+	}
+	resp, err := hc.Do(req)
 	if err != nil {
 		log.Printf("workbuddyai chat_stream uid=%s: transport error: %v", a.UID, err)
 		return nil, 0, nil, err
